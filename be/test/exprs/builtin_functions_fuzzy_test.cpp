@@ -224,7 +224,8 @@ protected:
     
     // Create array column with random element type
     ColumnPtr create_random_array_column(LogicalType element_type, size_t size = 10) {
-        auto element_column = create_random_column(element_type, size * 3); // More elements for arrays
+        auto element_column = make_nullable(
+                create_random_column(element_type, size * 3)); // More elements for arrays, wrapped as nullable
         auto offsets_column = UInt32Column::create();
         
         offsets_column->append(0);
@@ -234,8 +235,8 @@ protected:
             uint32_t last_offset = offsets_column->get_data().back();
             offsets_column->append(last_offset + array_size);
         }
-        
-        return ArrayColumn::create(element_column, offsets_column);
+
+        return ArrayColumn::create(std::move(element_column), std::move(offsets_column));
     }
     
     // Wrap column with Nullable wrapper
