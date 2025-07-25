@@ -160,7 +160,7 @@ protected:
                 auto column = DateColumn::create();
                 std::uniform_int_distribution<int32_t> dist(1, 3652425); // Valid date range
                 for (size_t i = 0; i < size; ++i) {
-                    column->append(DateValue::from_date_literal(20000101 + dist(_rng) % 100000));
+                    column->append(DateValue::create(2000, 1, 1).add<DAY>(dist(_rng)));
                 }
                 return column;
             }
@@ -345,14 +345,14 @@ protected:
                     auto variations = generate_column_variations(random_type, 10);
                     if (!variations.empty()) {
                         std::uniform_int_distribution<size_t> var_dist(0, variations.size() - 1);
-                        columns.push_back(variations[var_dist(_rng)]);
+                        columns.emplace_back(variations[var_dist(_rng)]);
                     }
                 }
                 
                 // Test the function - it should not crash
                 try {
                     if (desc.scalar_function) {
-                        auto result = desc.scalar_function(ctx.get(), columns);
+                        auto result = desc.scalar_function(ctx, columns);
                         // Function may return error, but should not crash
                         if (result.ok()) {
                             // Verify result is valid
@@ -462,11 +462,11 @@ TEST_F(BuiltinFunctionsFuzzyTest, TestNullAndEmptyInputs) {
             Columns empty_columns;
             for (uint8_t i = 0; i < descriptor.args_nums; ++i) {
                 auto column = Int32Column::create();
-                empty_columns.push_back(column);
+                empty_columns.emplace_back(column);
             }
             
             try {
-                auto result = descriptor.scalar_function(ctx.get(), empty_columns);
+                auto result = descriptor.scalar_function(ctx, empty_columns);
                 if (result.ok()) {
                     ASSERT_TRUE(result.value() != nullptr);
                     ASSERT_EQ(result.value()->size(), 0);
@@ -485,11 +485,11 @@ TEST_F(BuiltinFunctionsFuzzyTest, TestNullAndEmptyInputs) {
                 auto null_column = NullColumn::create();
                 null_column->append(1);
                 auto nullable_column = NullableColumn::create(base_column, null_column);
-                null_columns.push_back(nullable_column);
+                null_columns.emplace_back(nullable_column);
             }
             
             try {
-                auto result = descriptor.scalar_function(ctx.get(), null_columns);
+                auto result = descriptor.scalar_function(ctx, null_columns);
                 if (result.ok()) {
                     ASSERT_TRUE(result.value() != nullptr);
                 }
@@ -532,7 +532,7 @@ TEST_F(BuiltinFunctionsFuzzyTest, TestMixedConstAndNonConstInputs) {
             
             if (mixed_columns.size() == descriptor.args_nums) {
                 try {
-                    auto result = descriptor.scalar_function(ctx.get(), mixed_columns);
+                    auto result = descriptor.scalar_function(ctx, mixed_columns);
                     if (result.ok()) {
                         ASSERT_TRUE(result.value() != nullptr);
                     }
@@ -571,7 +571,7 @@ TEST_F(BuiltinFunctionsFuzzyTest, TestLargeDataInputs) {
         
         if (large_columns.size() == descriptor.args_nums) {
             try {
-                auto result = descriptor.scalar_function(ctx.get(), large_columns);
+                auto result = descriptor.scalar_function(ctx, large_columns);
                 if (result.ok()) {
                     ASSERT_TRUE(result.value() != nullptr);
                     ASSERT_EQ(result.value()->size(), 1000);
@@ -617,7 +617,7 @@ TEST_F(BuiltinFunctionsFuzzyTest, TestVariadicFunctions) {
             
             if (variadic_columns.size() == arg_count) {
                 try {
-                    auto result = descriptor.scalar_function(ctx.get(), variadic_columns);
+                    auto result = descriptor.scalar_function(ctx, variadic_columns);
                     if (result.ok()) {
                         ASSERT_TRUE(result.value() != nullptr);
                     }
