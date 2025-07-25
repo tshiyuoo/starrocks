@@ -382,7 +382,9 @@ TEST_F(BuiltinFunctionsFuzzyTest, TestAllBuiltinFunctions) {
     
     int tested_count = 0;
     int skipped_count = 0;
-    
+    std::vector<std::string> passed_cases;
+    std::vector<std::string> failed_cases;
+
     for (const auto& [function_id, descriptor] : fn_tables) {
         // Skip functions that don't have scalar function implementation
         if (!descriptor.scalar_function) {
@@ -393,14 +395,44 @@ TEST_F(BuiltinFunctionsFuzzyTest, TestAllBuiltinFunctions) {
         std::cout << "Testing function: " << descriptor.name 
                   << " (ID: " << function_id 
                   << ", args: " << static_cast<int>(descriptor.args_nums) << ")" << std::endl;
-        
-        test_function_with_random_inputs(function_id, descriptor);
+
+        // Run in subprocess and check exit code
+        ::testing::TestPartResultArray results;
+        bool passed = false;
+        try {
+            EXPECT_EXIT(
+                    {
+                        test_function_with_random_inputs(function_id, descriptor);
+                        exit(0);
+                    },
+                    ::testing::ExitedWithCode(0), ".*");
+            passed = true;
+        } catch (...) {
+            passed = false;
+        }
+        if (passed) {
+            passed_cases.push_back(descriptor.name);
+            std::cout << "[PASSED] " << descriptor.name << std::endl;
+        } else {
+            failed_cases.push_back(descriptor.name);
+            std::cout << "[FAILED] " << descriptor.name << std::endl;
+        }
         tested_count++;
     }
-    
-    std::cout << "Fuzzy test completed. Tested: " << tested_count 
-              << ", Skipped: " << skipped_count << " functions." << std::endl;
-    
+
+    std::cout << "\nFuzzy test completed. Tested: " << tested_count << ", Skipped: " << skipped_count << " functions."
+              << std::endl;
+    std::cout << "Passed cases (" << passed_cases.size() << "): ";
+    for (const auto& name : passed_cases) {
+        std::cout << name << ", ";
+    }
+    std::cout << std::endl;
+    std::cout << "Failed cases (" << failed_cases.size() << "): ";
+    for (const auto& name : failed_cases) {
+        std::cout << name << ", ";
+    }
+    std::cout << std::endl;
+
     ASSERT_GT(tested_count, 0) << "No functions were tested!";
 }
 
